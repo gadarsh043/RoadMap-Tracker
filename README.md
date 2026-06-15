@@ -2,6 +2,20 @@
 
 A collaborative roadmap app with a zigzag timeline UI, voice-to-idea input (Groq Whisper + LLM), heart voting, and admin drag-and-drop scheduling.
 
+## Quick finish (3 commands in your terminal)
+
+If setup is mostly done but deploy hasn't run yet:
+
+```bash
+npx firebase login
+npx firebase functions:secrets:set GROQ_API_KEY   # paste gsk_... key
+npm run deploy:all
+```
+
+Then seed admin: create `g.adarsh043@gmail.com` in Firebase Auth, visit `https://us-central1-roadmap-t.cloudfunctions.net/seedAdmin`, sign out/in.
+
+**Repo:** https://github.com/gadarsh043/RoadMap-Tracker (branch: `master`)
+
 ## Stack
 
 - **Frontend:** Vite, React, TypeScript, Tailwind v4
