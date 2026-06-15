@@ -24,8 +24,7 @@ service cloud.firestore {
           'createdBy', 'createdAt', 'updatedAt'
         ])
         && request.resource.data.createdBy == request.auth.uid
-        && request.resource.data.heartCount == 0
-        && request.resource.data.statusOverride == false;
+        && request.resource.data.heartCount == 0;
 
       allow update: if isAdmin()
         || (isSignedIn()
