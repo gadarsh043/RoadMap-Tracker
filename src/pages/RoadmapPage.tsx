@@ -1,16 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { LogIn, LogOut, Users } from 'lucide-react'
+import { LogIn, LogOut, Moon, Sun, Users } from 'lucide-react'
 import { GridBackground } from '../components/GridBackground'
 import { IdeaInputBar } from '../components/IdeaInputBar'
 import { AdminCalendar, handleAdminDateDrop } from '../components/AdminCalendar'
 import { AdminUserPanel } from '../components/AdminUserPanel'
-import { ShippedCard } from '../components/roadmap/ShippedCard'
+import { ShippedCardCompact } from '../components/roadmap/ShippedCardCompact'
 import { BuildingCard } from '../components/roadmap/BuildingCard'
 import { FeatureCard } from '../components/roadmap/FeatureCard'
 import { ZigzagPath, MobilePath, ZoneHeader } from '../components/roadmap/ZigzagPath'
 import { buildSmoothPath, getSide } from '../components/roadmap/helpers'
 import { useAuth, logout } from '../hooks/useAuth'
+import { useTheme } from '../hooks/useTheme'
 import {
   useRoadmapItems,
   useUserHearts,
@@ -30,6 +31,7 @@ function LoginToast({ show, message }: { show: boolean; message: string }) {
 
 export default function RoadmapPage() {
   const { user, isLoggedIn, isAdmin, loading: authLoading } = useAuth()
+  const { toggleTheme, isDark } = useTheme()
   const { items, grouped, loading: itemsLoading } = useRoadmapItems()
   const heartedIds = useUserHearts(user?.uid ?? null)
   const toggleHeart = useToggleHeart()
@@ -41,9 +43,9 @@ export default function RoadmapPage() {
   const [adminPanelOpen, setAdminPanelOpen] = useState(false)
 
   const { shipped, building, upcoming, exploring } = grouped
-  const connectedCount = shipped.length + building.length + upcoming.length
+  const connectedCount = building.length + upcoming.length
 
-  const containerRef = useRef<HTMLDivElement>(null)
+  const timelineRef = useRef<HTMLDivElement>(null)
   const cardRefs = useRef<(HTMLDivElement | null)[]>([])
   if (cardRefs.current.length !== connectedCount) {
     cardRefs.current = Array(connectedCount).fill(null)
@@ -83,11 +85,13 @@ export default function RoadmapPage() {
   }, [])
 
   const computePath = useCallback(() => {
-    const container = containerRef.current
-    if (!container) return
+    const container = timelineRef.current
+    if (!container || connectedCount < 2) {
+      setPathData({ fullPath: '', buildingPath: '' })
+      return
+    }
 
     const cRect = container.getBoundingClientRect()
-    const scrollTop = container.scrollTop || 0
     const points: { x: number; y: number }[] = []
 
     cardRefs.current.forEach((ref, i) => {
@@ -103,7 +107,7 @@ export default function RoadmapPage() {
         side === 'left'
           ? r.right - cRect.left + 14
           : r.left - cRect.left - 14
-      const y = r.top - cRect.top + scrollTop + r.height / 2
+      const y = r.top - cRect.top + r.height / 2
 
       points.push({ x, y })
     })
@@ -111,29 +115,26 @@ export default function RoadmapPage() {
     if (points.length < 2) return
 
     const fullPath = buildSmoothPath(points)
-    const bStart = Math.max(0, shipped.length - 1)
-    const bEnd = Math.min(points.length - 1, shipped.length + building.length)
-    const bPoints = points.slice(bStart, bEnd + 1)
+    const bEnd = Math.min(points.length - 1, building.length)
+    const bPoints = points.slice(0, bEnd + 1)
     const buildingPath = bPoints.length >= 2 ? buildSmoothPath(bPoints) : ''
 
     setPathData({ fullPath, buildingPath })
-  }, [shipped.length, building.length])
+  }, [connectedCount, building.length])
 
   useEffect(() => {
     const timers = [setTimeout(computePath, 50), setTimeout(computePath, 300)]
     const ro = new ResizeObserver(computePath)
-    if (containerRef.current) ro.observe(containerRef.current)
+    if (timelineRef.current) ro.observe(timelineRef.current)
     window.addEventListener('resize', computePath)
+    window.addEventListener('scroll', computePath, { passive: true })
     return () => {
       timers.forEach(clearTimeout)
       ro.disconnect()
       window.removeEventListener('resize', computePath)
+      window.removeEventListener('scroll', computePath)
     }
   }, [computePath, items])
-
-  useEffect(() => {
-    window.scrollTo(0, 0)
-  }, [])
 
   useEffect(() => {
     const onDragEndGlobal = () => handleDragEnd()
@@ -153,14 +154,21 @@ export default function RoadmapPage() {
 
   return (
     <div className="relative min-h-screen bg-[var(--bg)]">
-      <GridBackground variant="light" fixed />
+      <GridBackground variant={isDark ? 'dark' : 'light'} fixed />
       <LoginToast show={showLoginToast} message={toastMessage} />
 
-      {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-30 border-b border-[var(--border)] bg-[var(--surface)]/80 backdrop-blur-sm">
         <div className="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between">
           <span className="font-bold text-[var(--text-primary)]">Roadmap</span>
           <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-brand-500 hover:bg-[var(--bg)]"
+              aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
             {isAdmin && (
               <span className="text-xs font-medium text-brand-500 bg-brand-500/10 px-2 py-0.5 rounded-full hidden sm:inline">
                 Admin
@@ -201,7 +209,6 @@ export default function RoadmapPage() {
         </div>
       </header>
 
-      {/* Hero */}
       <section className="relative overflow-hidden pt-16">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-brand-500/[0.06] rounded-full blur-3xl" />
@@ -219,146 +226,139 @@ export default function RoadmapPage() {
         </div>
       </section>
 
-      {/* Admin calendar */}
       {isAdmin && (
         <AdminCalendar
           items={items}
           draggingItemId={draggingItemId}
           onDateDrop={handleDateDrop}
+          onChipDragStart={handleDragStart}
         />
       )}
 
-      {/* Roadmap */}
-      <section ref={containerRef} className="relative max-w-5xl mx-auto px-6 pb-32">
-        <MobilePath />
-        <ZigzagPath pathData={pathData} />
-
-        <div className="relative z-10">
-          {/* SHIPPED */}
-          <ZoneHeader
-            emoji="🚀"
-            title="Shipped"
-            status="shipped"
-            isAdmin={isAdmin}
-            onDropZone={handleZoneDrop}
-          />
-          <div className="space-y-6 md:space-y-28 lg:space-y-36">
-            {shipped.length === 0 && (
-              <p className="text-center text-sm text-[var(--text-muted)]">Nothing shipped yet.</p>
-            )}
-            {shipped.map((item) => {
-              const idx = gi++
-              return (
-                <ShippedCard
-                  key={item.id}
-                  item={item}
-                  side={getSide(idx)}
-                  cardRef={(el) => { cardRefs.current[idx] = el }}
-                  isAdmin={isAdmin}
-                  isDragging={draggingItemId === item.id}
-                  onDragStart={handleDragStart}
-                />
-              )
-            })}
+      <section className="relative max-w-5xl mx-auto px-6 pb-32">
+        {/* SHIPPED — horizontal grid, no timeline */}
+        <ZoneHeader
+          emoji="🚀"
+          title="Shipped"
+          status="shipped"
+          isAdmin={isAdmin}
+          onDropZone={handleZoneDrop}
+        />
+        {shipped.length === 0 ? (
+          <p className="text-center text-sm text-[var(--text-muted)] mb-12">Nothing shipped yet.</p>
+        ) : (
+          <div className="flex flex-wrap gap-3 justify-center mb-16 md:mb-24">
+            {shipped.map((item) => (
+              <ShippedCardCompact
+                key={item.id}
+                item={item}
+                isAdmin={isAdmin}
+                isDragging={draggingItemId === item.id}
+                onDragStart={handleDragStart}
+              />
+            ))}
           </div>
+        )}
 
-          {/* BUILDING NOW */}
-          <ZoneHeader
-            emoji="🔨"
-            title="Building Now"
-            status="building"
-            isAdmin={isAdmin}
-            onDropZone={handleZoneDrop}
-          />
-          <div className="space-y-6 md:space-y-28 lg:space-y-36">
-            {building.length === 0 && (
-              <p className="text-center text-sm text-[var(--text-muted)]">Nothing in progress yet.</p>
-            )}
-            {building.map((item) => {
-              const idx = gi++
-              return (
-                <BuildingCard
-                  key={item.id}
-                  item={item}
-                  side={getSide(idx)}
-                  cardRef={(el) => { cardRefs.current[idx] = el }}
-                  isAdmin={isAdmin}
-                  isDragging={draggingItemId === item.id}
-                  onDragStart={handleDragStart}
-                />
-              )
-            })}
-          </div>
+        {/* BUILDING + UP NEXT — zigzag timeline */}
+        <div ref={timelineRef} className="relative">
+          <MobilePath />
+          <ZigzagPath pathData={pathData} />
 
-          {/* UP NEXT */}
-          <ZoneHeader
-            emoji="💡"
-            title="Up Next"
-            status="upcoming"
-            isAdmin={isAdmin}
-            onDropZone={handleZoneDrop}
-          />
-          <div className="space-y-6 md:space-y-28 lg:space-y-36">
-            {upcoming.length === 0 && (
-              <p className="text-center text-sm text-[var(--text-muted)]">No upcoming items yet.</p>
-            )}
-            {upcoming.map((item) => {
-              const idx = gi++
-              return (
-                <FeatureCard
-                  key={item.id}
-                  item={item}
-                  side={getSide(idx)}
-                  hearted={heartedIds.has(item.id)}
-                  heartCount={item.heartCount}
-                  onHeart={handleHeart}
-                  isLoggedIn={isLoggedIn}
-                  onLoginRequired={() => handleLoginRequired('Sign in to vote on features')}
-                  cardRef={(el) => { cardRefs.current[idx] = el }}
-                  isAdmin={isAdmin}
-                  isDragging={draggingItemId === item.id}
-                  onDragStart={handleDragStart}
-                />
-              )
-            })}
-          </div>
+          <div className="relative z-10">
+            <ZoneHeader
+              emoji="🔨"
+              title="Building Now"
+              status="building"
+              isAdmin={isAdmin}
+              onDropZone={handleZoneDrop}
+            />
+            <div className="space-y-6 md:space-y-28 lg:space-y-36">
+              {building.length === 0 && (
+                <p className="text-center text-sm text-[var(--text-muted)]">Nothing in progress yet.</p>
+              )}
+              {building.map((item) => {
+                const idx = gi++
+                return (
+                  <BuildingCard
+                    key={item.id}
+                    item={item}
+                    side={getSide(idx)}
+                    cardRef={(el) => { cardRefs.current[idx] = el }}
+                    isAdmin={isAdmin}
+                    isDragging={draggingItemId === item.id}
+                    onDragStart={handleDragStart}
+                  />
+                )
+              })}
+            </div>
 
-          {/* EXPLORING */}
-          <ZoneHeader
-            emoji="🔮"
-            title="Exploring"
-            status="exploring"
-            isAdmin={isAdmin}
-            onDropZone={handleZoneDrop}
-          />
-          <div className="space-y-8 md:space-y-20">
-            {exploring.length === 0 && (
-              <p className="text-center text-sm text-[var(--text-muted)]">No ideas being explored yet.</p>
-            )}
-            {exploring.map((item) => {
-              const idx = gi++
-              return (
-                <FeatureCard
-                  key={item.id}
-                  item={item}
-                  side={getSide(idx)}
-                  hearted={heartedIds.has(item.id)}
-                  heartCount={item.heartCount}
-                  onHeart={handleHeart}
-                  isLoggedIn={isLoggedIn}
-                  onLoginRequired={() => handleLoginRequired('Sign in to vote on features')}
-                  faded
-                  isAdmin={isAdmin}
-                  isDragging={draggingItemId === item.id}
-                  onDragStart={handleDragStart}
-                />
-              )
-            })}
+            <ZoneHeader
+              emoji="💡"
+              title="Up Next"
+              status="upcoming"
+              isAdmin={isAdmin}
+              onDropZone={handleZoneDrop}
+            />
+            <div className="space-y-6 md:space-y-28 lg:space-y-36">
+              {upcoming.length === 0 && (
+                <p className="text-center text-sm text-[var(--text-muted)]">No upcoming items yet.</p>
+              )}
+              {upcoming.map((item) => {
+                const idx = gi++
+                return (
+                  <FeatureCard
+                    key={item.id}
+                    item={item}
+                    side={getSide(idx)}
+                    hearted={heartedIds.has(item.id)}
+                    heartCount={item.heartCount}
+                    onHeart={handleHeart}
+                    isLoggedIn={isLoggedIn}
+                    onLoginRequired={() => handleLoginRequired('Sign in to vote on features')}
+                    cardRef={(el) => { cardRefs.current[idx] = el }}
+                    isAdmin={isAdmin}
+                    isDragging={draggingItemId === item.id}
+                    onDragStart={handleDragStart}
+                  />
+                )
+              })}
+            </div>
           </div>
         </div>
+
+        {/* EXPLORING — horizontal grid */}
+        <ZoneHeader
+          emoji="🔮"
+          title="Exploring"
+          status="exploring"
+          isAdmin={isAdmin}
+          onDropZone={handleZoneDrop}
+        />
+        {exploring.length === 0 ? (
+          <p className="text-center text-sm text-[var(--text-muted)]">No ideas being explored yet.</p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {exploring.map((item) => (
+              <FeatureCard
+                key={item.id}
+                item={item}
+                hearted={heartedIds.has(item.id)}
+                heartCount={item.heartCount}
+                onHeart={handleHeart}
+                isLoggedIn={isLoggedIn}
+                onLoginRequired={() => handleLoginRequired('Sign in to vote on features')}
+                faded
+                compact
+                isAdmin={isAdmin}
+                isDragging={draggingItemId === item.id}
+                onDragStart={handleDragStart}
+              />
+            ))}
+          </div>
+        )}
       </section>
 
-      {/* Footer */}
       <footer className="border-t border-[var(--border)] py-12">
         <div className="max-w-3xl mx-auto px-6 text-center">
           <p className="text-[var(--text-secondary)] text-sm md:text-base leading-relaxed">
@@ -370,6 +370,7 @@ export default function RoadmapPage() {
       <IdeaInputBar
         isLoggedIn={isLoggedIn}
         userId={user?.uid ?? null}
+        userEmail={user?.email ?? null}
         itemCount={items.length}
         onLoginRequired={() => handleLoginRequired('Sign in to share your ideas')}
       />

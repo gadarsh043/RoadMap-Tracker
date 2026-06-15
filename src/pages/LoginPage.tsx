@@ -2,8 +2,10 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { login } from '../hooks/useAuth'
 import { GridBackground } from '../components/GridBackground'
+import { useTheme } from '../hooks/useTheme'
 
 export default function LoginPage() {
+  const { isDark } = useTheme()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -26,7 +28,7 @@ export default function LoginPage() {
 
   return (
     <div className="relative min-h-screen flex items-center justify-center p-4">
-      <GridBackground variant="light" fixed />
+      <GridBackground variant={isDark ? 'dark' : 'light'} fixed />
       <div className="relative z-10 w-full max-w-md bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-lg p-8">
         <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-1">Sign in</h1>
         <p className="text-sm text-[var(--text-muted)] mb-6">

@@ -11,6 +11,7 @@ type RecordingState = 'idle' | 'recording' | 'processing'
 interface IdeaInputBarProps {
   isLoggedIn: boolean
   userId: string | null
+  userEmail?: string | null
   itemCount: number
   onLoginRequired: () => void
 }
@@ -18,6 +19,7 @@ interface IdeaInputBarProps {
 export function IdeaInputBar({
   isLoggedIn,
   userId,
+  userEmail,
   itemCount,
   onLoginRequired,
 }: IdeaInputBarProps) {
@@ -113,7 +115,7 @@ export function IdeaInputBar({
 
   const handleConfirm = async (input: RoadmapItemInput) => {
     if (!userId) return
-    await createRoadmapItem(input, userId, itemCount)
+    await createRoadmapItem(input, userId, itemCount, userEmail ?? undefined)
   }
 
   const toggleMic = () => {

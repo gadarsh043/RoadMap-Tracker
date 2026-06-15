@@ -14,6 +14,7 @@ export interface RoadmapItem {
   heartCount: number
   sortOrder: number
   createdBy: string
+  createdByEmail?: string
   createdAt: Timestamp
   updatedAt: Timestamp
 }

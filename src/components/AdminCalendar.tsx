@@ -8,10 +8,19 @@ interface AdminCalendarProps {
   items: RoadmapItem[]
   draggingItemId: string | null
   onDateDrop: (itemId: string, date: Date) => void
+  onChipDragStart?: (itemId: string) => void
 }
 
-export function AdminCalendar({ items, draggingItemId, onDateDrop }: AdminCalendarProps) {
+export function AdminCalendar({
+  items,
+  draggingItemId,
+  onDateDrop,
+  onChipDragStart,
+}: AdminCalendarProps) {
   const [viewDate, setViewDate] = useState(() => new Date())
+  const [localDraggingId, setLocalDraggingId] = useState<string | null>(null)
+
+  const activeDragId = draggingItemId || localDraggingId
 
   const { year, month, days, startOffset } = useMemo(() => {
     const y = viewDate.getFullYear()
@@ -42,9 +51,10 @@ export function AdminCalendar({ items, draggingItemId, onDateDrop }: AdminCalend
 
   const handleDrop = (e: React.DragEvent, date: Date) => {
     e.preventDefault()
-    const itemId = e.dataTransfer.getData('text/plain') || draggingItemId
+    const itemId = e.dataTransfer.getData('text/plain') || activeDragId
     if (!itemId) return
     onDateDrop(itemId, date)
+    setLocalDraggingId(null)
   }
 
   return (
@@ -55,7 +65,7 @@ export function AdminCalendar({ items, draggingItemId, onDateDrop }: AdminCalend
           <button
             type="button"
             onClick={() => setViewDate(new Date(year, month - 1, 1))}
-            className="p-1.5 rounded-lg hover:bg-black/5"
+            className="p-1.5 rounded-lg hover:bg-[var(--bg)]"
             aria-label="Previous month"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -66,7 +76,7 @@ export function AdminCalendar({ items, draggingItemId, onDateDrop }: AdminCalend
           <button
             type="button"
             onClick={() => setViewDate(new Date(year, month + 1, 1))}
-            className="p-1.5 rounded-lg hover:bg-black/5"
+            className="p-1.5 rounded-lg hover:bg-[var(--bg)]"
             aria-label="Next month"
           >
             <ChevronRight className="w-4 h-4" />
@@ -94,28 +104,35 @@ export function AdminCalendar({ items, draggingItemId, onDateDrop }: AdminCalend
               key={key}
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => handleDrop(e, date)}
-              className={`min-h-[72px] p-1 rounded-lg border transition-colors ${
-                draggingItemId
+              className={`min-h-[88px] max-h-[120px] overflow-y-auto p-1 rounded-lg border transition-colors ${
+                activeDragId
                   ? 'border-dashed border-brand-500/50 hover:bg-brand-500/5'
                   : 'border-transparent'
-              } ${isToday ? 'bg-brand-500/5' : 'hover:bg-black/[0.02]'}`}
+              } ${isToday ? 'bg-brand-500/5' : 'hover:bg-[var(--bg)]'}`}
             >
-              <div className={`text-xs font-medium mb-1 ${isToday ? 'text-brand-500' : 'text-[var(--text-muted)]'}`}>
+              <div className={`text-xs font-medium mb-1 sticky top-0 ${isToday ? 'text-brand-500' : 'text-[var(--text-muted)]'}`}>
                 {date.getDate()}
               </div>
               <div className="space-y-0.5">
-                {dayItems.slice(0, 2).map((item) => (
+                {dayItems.map((item) => (
                   <div
                     key={item.id}
-                    className="text-[10px] truncate px-1 py-0.5 rounded bg-brand-500/10 text-brand-500"
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData('text/plain', item.id)
+                      e.dataTransfer.effectAllowed = 'move'
+                      setLocalDraggingId(item.id)
+                      onChipDragStart?.(item.id)
+                    }}
+                    onDragEnd={() => setLocalDraggingId(null)}
+                    className={`text-[10px] truncate px-1 py-0.5 rounded bg-brand-500/10 text-brand-500 cursor-grab active:cursor-grabbing hover:bg-brand-500/20 ${
+                      activeDragId === item.id ? 'opacity-50' : ''
+                    }`}
                     title={item.title}
                   >
                     {item.emoji} {item.title}
                   </div>
                 ))}
-                {dayItems.length > 2 && (
-                  <div className="text-[10px] text-[var(--text-muted)]">+{dayItems.length - 2} more</div>
-                )}
               </div>
             </div>
           )
@@ -123,7 +140,7 @@ export function AdminCalendar({ items, draggingItemId, onDateDrop }: AdminCalend
       </div>
 
       <p className="text-xs text-[var(--text-muted)] mt-3">
-        Drag cards onto a date to reschedule. Drop on zone headers to override status.
+        Drag chips between dates or drag card grips onto the calendar. Drop on zone headers to override status.
       </p>
     </div>
   )

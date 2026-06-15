@@ -66,6 +66,7 @@ export async function createRoadmapItem(
   input: RoadmapItemInput,
   userId: string,
   sortOrder: number,
+  userEmail?: string,
 ) {
   const now = serverTimestamp()
   await addDoc(collection(db, 'roadmapItems'), {
@@ -79,6 +80,7 @@ export async function createRoadmapItem(
     heartCount: 0,
     sortOrder,
     createdBy: userId,
+    createdByEmail: userEmail ?? null,
     createdAt: now,
     updatedAt: now,
   })
@@ -107,6 +109,17 @@ export async function updateRoadmapSchedule(
   }
 
   await updateDoc(doc(db, 'roadmapItems', itemId), updates)
+}
+
+export async function unpinRoadmapItem(itemId: string) {
+  await updateDoc(doc(db, 'roadmapItems', itemId), {
+    statusOverride: false,
+    updatedAt: serverTimestamp(),
+  })
+}
+
+export async function setRoadmapTargetDate(itemId: string, date: Date | null) {
+  await updateRoadmapSchedule(itemId, date, false)
 }
 
 export async function setRoadmapZoneOverride(itemId: string, status: RoadmapItem['status']) {
