@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+
+const POPOVER_WIDTH = 260
+const POPOVER_HEIGHT = 320
 
 interface DatePickerPopoverProps {
   open: boolean
@@ -20,10 +24,45 @@ export function DatePickerPopover({
 }: DatePickerPopoverProps) {
   const popoverRef = useRef<HTMLDivElement>(null)
   const [viewDate, setViewDate] = useState(() => initialDate ?? new Date())
+  const [position, setPosition] = useState({ top: 0, left: 0 })
 
   useEffect(() => {
     if (open && initialDate) setViewDate(initialDate)
   }, [open, initialDate])
+
+  useEffect(() => {
+    if (!open) return
+
+    const updatePosition = () => {
+      const anchor = anchorRef.current
+      if (!anchor) return
+
+      const rect = anchor.getBoundingClientRect()
+      const margin = 8
+
+      let top = rect.bottom + margin
+      if (top + POPOVER_HEIGHT > window.innerHeight - margin) {
+        top = rect.top - POPOVER_HEIGHT - margin
+      }
+      top = Math.max(margin, Math.min(top, window.innerHeight - POPOVER_HEIGHT - margin))
+
+      let left = rect.left
+      if (left + POPOVER_WIDTH > window.innerWidth - margin) {
+        left = window.innerWidth - POPOVER_WIDTH - margin
+      }
+      left = Math.max(margin, left)
+
+      setPosition({ top, left })
+    }
+
+    updatePosition()
+    window.addEventListener('resize', updatePosition)
+    window.addEventListener('scroll', updatePosition, true)
+    return () => {
+      window.removeEventListener('resize', updatePosition)
+      window.removeEventListener('scroll', updatePosition, true)
+    }
+  }, [open, anchorRef])
 
   useEffect(() => {
     if (!open) return
@@ -58,10 +97,11 @@ export function DatePickerPopover({
 
   const monthLabel = viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 
-  return (
+  return createPortal(
     <div
       ref={popoverRef}
-      className="absolute bottom-full right-0 mb-2 z-50 w-[260px] rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-xl p-3"
+      className="fixed z-[100] w-[260px] rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-xl p-3"
+      style={{ top: position.top, left: position.left }}
     >
       <div className="flex items-center justify-between mb-2">
         <button
@@ -130,7 +170,8 @@ export function DatePickerPopover({
           Clear date
         </button>
       )}
-    </div>
+    </div>,
+    document.body,
   )
 }
 

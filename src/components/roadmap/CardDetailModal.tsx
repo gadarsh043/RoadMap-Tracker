@@ -90,7 +90,7 @@ export function CardDetailModal({ item, isAdmin, onClose }: CardDetailModalProps
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-md bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6 shadow-xl max-h-[90vh] overflow-y-auto"
+        className="relative w-full max-w-md bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6 shadow-xl max-h-[90vh] overflow-y-auto overflow-x-visible"
         onClick={(e) => e.stopPropagation()}
       >
         <button
