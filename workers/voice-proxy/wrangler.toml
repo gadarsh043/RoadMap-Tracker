@@ -1,0 +1,11 @@
+name = "roadmap-voice-proxy"
+main = "src/index.ts"
+compatibility_date = "2024-11-01"
+
+# Comma-separated origins allowed to call this worker (update after deploy).
+[vars]
+ALLOWED_ORIGINS = "http://localhost:5173,https://roadmap-t.web.app,https://roadmap-t.firebaseapp.com"
+
+# Set secrets before deploy:
+#   npx wrangler secret put GROQ_API_KEY
+#   npx wrangler secret put FIREBASE_API_KEY

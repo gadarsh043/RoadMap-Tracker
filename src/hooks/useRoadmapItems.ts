@@ -59,7 +59,31 @@ function groupItems(items: RoadmapItem[]): GroupedRoadmap {
     grouped[zone].push(item)
   }
 
+  grouped.shipped = sortByDate(grouped.shipped, 'shipped')
+  grouped.building = sortByDate(grouped.building, 'target')
+  grouped.upcoming = sortByDate(grouped.upcoming, 'target')
+  grouped.exploring.sort((a, b) => a.sortOrder - b.sortOrder)
+
   return grouped
+}
+
+function sortByDate(
+  items: RoadmapItem[],
+  mode: 'shipped' | 'target',
+): RoadmapItem[] {
+  return [...items].sort((a, b) => {
+    const aMs =
+      mode === 'shipped'
+        ? a.shippedDate?.toMillis() ?? a.targetDate?.toMillis() ?? 0
+        : a.targetDate?.toMillis() ?? Number.MAX_SAFE_INTEGER
+    const bMs =
+      mode === 'shipped'
+        ? b.shippedDate?.toMillis() ?? b.targetDate?.toMillis() ?? 0
+        : b.targetDate?.toMillis() ?? Number.MAX_SAFE_INTEGER
+
+    if (aMs !== bMs) return aMs - bMs
+    return a.sortOrder - b.sortOrder
+  })
 }
 
 export async function createRoadmapItem(
@@ -118,8 +142,49 @@ export async function unpinRoadmapItem(itemId: string) {
   })
 }
 
+export async function pinRoadmapItem(itemId: string) {
+  await updateDoc(doc(db, 'roadmapItems', itemId), {
+    statusOverride: true,
+    updatedAt: serverTimestamp(),
+  })
+}
+
+export async function markRoadmapItemShipped(itemId: string, shippedDate?: Date) {
+  await updateDoc(doc(db, 'roadmapItems', itemId), {
+    status: 'shipped',
+    statusOverride: true,
+    shippedDate: Timestamp.fromDate(shippedDate ?? new Date()),
+    updatedAt: serverTimestamp(),
+  })
+}
+
+export async function moveRoadmapItem(
+  itemId: string,
+  status: RoadmapItem['status'],
+  targetDate?: Date | null,
+) {
+  const updates: Record<string, unknown> = {
+    status,
+    statusOverride: true,
+    updatedAt: serverTimestamp(),
+  }
+
+  if (targetDate !== undefined) {
+    updates.targetDate = targetDate ? Timestamp.fromDate(targetDate) : null
+  }
+
+  if (status === 'shipped') {
+    updates.shippedDate = Timestamp.fromDate(targetDate ?? new Date())
+  }
+
+  await updateDoc(doc(db, 'roadmapItems', itemId), updates)
+}
+
 export async function setRoadmapTargetDate(itemId: string, date: Date | null) {
-  await updateRoadmapSchedule(itemId, date, false)
+  await updateDoc(doc(db, 'roadmapItems', itemId), {
+    targetDate: date ? Timestamp.fromDate(date) : null,
+    updatedAt: serverTimestamp(),
+  })
 }
 
 export async function setRoadmapZoneOverride(itemId: string, status: RoadmapItem['status']) {

@@ -27,7 +27,9 @@ service cloud.firestore {
           'createdBy', 'createdAt', 'updatedAt'
         ])
         && request.resource.data.createdBy == request.auth.uid
-        && request.resource.data.heartCount == 0;
+        && request.resource.data.heartCount == 0
+        && (!('createdByEmail' in request.resource.data)
+          || request.resource.data.createdByEmail is string);
 
       allow update: if isAdmin()
         || (isSignedIn()

@@ -1,15 +1,18 @@
+import { ADMIN_EMAIL } from '../../hooks/useAuth'
+
 interface ContributorTagProps {
   email?: string | null
+  className?: string
 }
 
-export function ContributorTag({ email }: ContributorTagProps) {
-  const label = email?.trim() || 'unknown'
+export function ContributorTag({ email, className = '' }: ContributorTagProps) {
+  const label = email?.trim() || ADMIN_EMAIL
   return (
     <span
-      className="inline-block text-[10px] text-[var(--text-muted)] bg-[var(--bg)] border border-[var(--border)] rounded-full px-2 py-0.5 mt-1.5 max-w-[200px] truncate"
-      title={`Added by ${label}`}
+      className={`block text-[10px] text-[var(--text-muted)] truncate text-center mx-auto max-w-full px-1 mt-auto pt-1 ${className}`}
+      title={label}
     >
-      Added by {label}
+      {label}
     </span>
   )
 }

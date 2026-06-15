@@ -14,6 +14,8 @@ import { getFirestore, Timestamp } from 'firebase-admin/firestore'
 const PROJECT_ID = 'roadmap-t'
 const SEED_TAG = 'localpro-hub-v1'
 const SEED_USER = 'seed-script'
+const ADMIN_EMAIL = 'g.adarsh043@gmail.com'
+const forceReset = process.argv.includes('--force')
 
 const seedItems = [
   { title: 'Project bootstrap & foundation', description: 'Vite + React 18 + TypeScript, Tailwind v4, Framer Motion, shadcn/ui, Supabase client, brand assets.', emoji: '🏗️', status: 'shipped', statusOverride: true, targetDate: null, shippedDate: '2026-05-28' },
@@ -69,10 +71,21 @@ function initAdmin() {
 async function main() {
   initAdmin()
   const db = getFirestore()
-  const existing = await db.collection('roadmapItems').where('seedTag', '==', SEED_TAG).limit(1).get()
-  if (!existing.empty) {
-    console.log('LocalPRO seed already exists. Skipping.')
-    return
+
+  if (forceReset) {
+    const toDelete = await db.collection('roadmapItems').where('seedTag', '==', SEED_TAG).get()
+    const deleteBatch = db.batch()
+    toDelete.docs.forEach((d) => deleteBatch.delete(d.ref))
+    if (!toDelete.empty) {
+      await deleteBatch.commit()
+      console.log(`Deleted ${toDelete.size} existing LocalPRO seed items.`)
+    }
+  } else {
+    const existing = await db.collection('roadmapItems').where('seedTag', '==', SEED_TAG).limit(1).get()
+    if (!existing.empty) {
+      console.log('LocalPRO seed already exists. Skipping. Use --force to reset.')
+      return
+    }
   }
 
   const batch = db.batch()
@@ -90,6 +103,7 @@ async function main() {
       heartCount: 0,
       sortOrder: i,
       createdBy: SEED_USER,
+      createdByEmail: ADMIN_EMAIL,
       createdAt: now,
       updatedAt: now,
       seedTag: SEED_TAG,

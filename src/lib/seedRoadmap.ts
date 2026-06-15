@@ -10,6 +10,7 @@ import {
   doc,
 } from 'firebase/firestore'
 import { db } from './firebase'
+import { ADMIN_EMAIL } from '../hooks/useAuth'
 import { localproRoadmapSeed, LOCALPRO_SEED_TAG } from '../data/localproRoadmapSeed'
 import type { RoadmapSeedItem } from '../data/localproRoadmapSeed'
 
@@ -23,6 +24,29 @@ export async function importLocalproRoadmap(userId: string): Promise<number> {
   const already = await isLocalproSeedImported()
   if (already) {
     throw new Error('LocalPRO Hub roadmap was already imported.')
+  }
+
+  const batch = writeBatch(db)
+  const col = collection(db, 'roadmapItems')
+  const now = Timestamp.now()
+
+  localproRoadmapSeed.forEach((item, index) => {
+    const ref = doc(col)
+    batch.set(ref, buildSeedDoc(item, userId, index, now))
+  })
+
+  await batch.commit()
+  return localproRoadmapSeed.length
+}
+
+export async function resetAndImportLocalproRoadmap(userId: string): Promise<number> {
+  const q = query(collection(db, 'roadmapItems'), where('seedTag', '==', LOCALPRO_SEED_TAG))
+  const existing = await getDocs(q)
+
+  const deleteBatch = writeBatch(db)
+  existing.docs.forEach((d) => deleteBatch.delete(d.ref))
+  if (!existing.empty) {
+    await deleteBatch.commit()
   }
 
   const batch = writeBatch(db)
@@ -55,6 +79,7 @@ function buildSeedDoc(
     heartCount: 0,
     sortOrder,
     createdBy: userId,
+    createdByEmail: ADMIN_EMAIL,
     createdAt: now,
     updatedAt: now,
     seedTag: LOCALPRO_SEED_TAG,

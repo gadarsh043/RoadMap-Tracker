@@ -5,6 +5,7 @@ import { GridBackground } from '../components/GridBackground'
 import { IdeaInputBar } from '../components/IdeaInputBar'
 import { AdminCalendar, handleAdminDateDrop } from '../components/AdminCalendar'
 import { AdminUserPanel } from '../components/AdminUserPanel'
+import { ResetLocalproButton } from '../components/ResetLocalproButton'
 import { ShippedCardCompact } from '../components/roadmap/ShippedCardCompact'
 import { BuildingCard } from '../components/roadmap/BuildingCard'
 import { FeatureCard } from '../components/roadmap/FeatureCard'
@@ -12,13 +13,7 @@ import { ZigzagPath, MobilePath, ZoneHeader } from '../components/roadmap/Zigzag
 import { buildSmoothPath, getSide } from '../components/roadmap/helpers'
 import { useAuth, logout } from '../hooks/useAuth'
 import { useTheme } from '../hooks/useTheme'
-import {
-  useRoadmapItems,
-  useUserHearts,
-  useToggleHeart,
-  setRoadmapZoneOverride,
-} from '../hooks/useRoadmapItems'
-import type { RoadmapStatus } from '../types/roadmap'
+import { useRoadmapItems, useUserHearts, useToggleHeart } from '../hooks/useRoadmapItems'
 
 function LoginToast({ show, message }: { show: boolean; message: string }) {
   if (!show) return null
@@ -39,7 +34,6 @@ export default function RoadmapPage() {
   const [showLoginToast, setShowLoginToast] = useState(false)
   const [toastMessage, setToastMessage] = useState('Sign in to continue')
   const [pathData, setPathData] = useState({ fullPath: '', buildingPath: '' })
-  const [draggingItemId, setDraggingItemId] = useState<string | null>(null)
   const [adminPanelOpen, setAdminPanelOpen] = useState(false)
 
   const { shipped, building, upcoming, exploring } = grouped
@@ -66,22 +60,14 @@ export default function RoadmapPage() {
     [user, heartedIds, toggleHeart],
   )
 
-  const handleDragStart = useCallback((itemId: string) => {
-    setDraggingItemId(itemId)
-  }, [])
-
-  const handleDragEnd = useCallback(() => {
-    setDraggingItemId(null)
-  }, [])
-
   const handleDateDrop = useCallback(async (itemId: string, date: Date) => {
     await handleAdminDateDrop(itemId, date)
-    setDraggingItemId(null)
   }, [])
 
-  const handleZoneDrop = useCallback(async (status: string, itemId: string) => {
-    await setRoadmapZoneOverride(itemId, status as RoadmapStatus)
-    setDraggingItemId(null)
+  const handleResetSuccess = useCallback((count: number) => {
+    setToastMessage(`Reset complete — ${count} LocalPRO items imported`)
+    setShowLoginToast(true)
+    setTimeout(() => setShowLoginToast(false), 3000)
   }, [])
 
   const computePath = useCallback(() => {
@@ -136,12 +122,6 @@ export default function RoadmapPage() {
     }
   }, [computePath, items])
 
-  useEffect(() => {
-    const onDragEndGlobal = () => handleDragEnd()
-    document.addEventListener('dragend', onDragEndGlobal)
-    return () => document.removeEventListener('dragend', onDragEndGlobal)
-  }, [handleDragEnd])
-
   let gi = 0
 
   if (authLoading || itemsLoading) {
@@ -158,9 +138,40 @@ export default function RoadmapPage() {
       <LoginToast show={showLoginToast} message={toastMessage} />
 
       <header className="fixed top-0 left-0 right-0 z-30 border-b border-[var(--border)] bg-[var(--surface)]/80 backdrop-blur-sm">
-        <div className="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between">
-          <span className="font-bold text-[var(--text-primary)]">Roadmap</span>
-          <div className="flex items-center gap-3">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <span className="font-bold text-[var(--text-primary)] whitespace-nowrap">
+              Roadmap
+              {isAdmin && (
+                <span className="text-brand-500 font-medium text-sm ml-1">(Admin)</span>
+              )}
+            </span>
+            {isAdmin && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setAdminPanelOpen(true)}
+                  className="flex items-center gap-1 text-sm text-[var(--text-secondary)] hover:text-brand-500"
+                >
+                  <Users className="w-4 h-4" />
+                  <span className="hidden sm:inline">Users</span>
+                </button>
+                {user && (
+                  <ResetLocalproButton userId={user.uid} onSuccess={handleResetSuccess} />
+                )}
+              </>
+            )}
+          </div>
+
+          <div className="text-center min-w-0 px-2">
+            {isLoggedIn && user?.email && (
+              <span className="text-sm text-[var(--text-muted)] truncate block max-w-[200px] sm:max-w-none mx-auto">
+                {user.email}
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center justify-end gap-2 sm:gap-3">
             <button
               type="button"
               onClick={toggleTheme}
@@ -169,40 +180,22 @@ export default function RoadmapPage() {
             >
               {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
-            {isAdmin && (
-              <span className="text-xs font-medium text-brand-500 bg-brand-500/10 px-2 py-0.5 rounded-full hidden sm:inline">
-                Admin
-              </span>
-            )}
-            {isAdmin && (
+            {isLoggedIn ? (
               <button
                 type="button"
-                onClick={() => setAdminPanelOpen(true)}
-                className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)] hover:text-brand-500"
+                onClick={() => logout()}
+                className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-brand-500 hover:bg-[var(--bg)]"
+                aria-label="Sign out"
               >
-                <Users className="w-4 h-4" />
-                Users
+                <LogOut className="w-4 h-4" />
               </button>
-            )}
-            {isLoggedIn ? (
-              <>
-                <span className="text-sm text-[var(--text-muted)] hidden sm:inline">{user?.email}</span>
-                <button
-                  type="button"
-                  onClick={() => logout()}
-                  className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)] hover:text-brand-500"
-                >
-                  <LogOut className="w-4 h-4" />
-                  Sign out
-                </button>
-              </>
             ) : (
               <Link
                 to="/login"
-                className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)] hover:text-brand-500"
+                className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-brand-500 hover:bg-[var(--bg)]"
+                aria-label="Sign in"
               >
                 <LogIn className="w-4 h-4" />
-                Sign in
               </Link>
             )}
           </div>
@@ -226,53 +219,26 @@ export default function RoadmapPage() {
         </div>
       </section>
 
-      {isAdmin && (
-        <AdminCalendar
-          items={items}
-          draggingItemId={draggingItemId}
-          onDateDrop={handleDateDrop}
-          onChipDragStart={handleDragStart}
-        />
-      )}
+      {isAdmin && <AdminCalendar items={items} onDateDrop={handleDateDrop} />}
 
       <section className="relative max-w-5xl mx-auto px-6 pb-32">
-        {/* SHIPPED — horizontal grid, no timeline */}
-        <ZoneHeader
-          emoji="🚀"
-          title="Shipped"
-          status="shipped"
-          isAdmin={isAdmin}
-          onDropZone={handleZoneDrop}
-        />
+        <ZoneHeader emoji="🚀" title="Shipped" />
         {shipped.length === 0 ? (
           <p className="text-center text-sm text-[var(--text-muted)] mb-12">Nothing shipped yet.</p>
         ) : (
           <div className="flex flex-wrap gap-3 justify-center mb-16 md:mb-24">
             {shipped.map((item) => (
-              <ShippedCardCompact
-                key={item.id}
-                item={item}
-                isAdmin={isAdmin}
-                isDragging={draggingItemId === item.id}
-                onDragStart={handleDragStart}
-              />
+              <ShippedCardCompact key={item.id} item={item} isAdmin={isAdmin} />
             ))}
           </div>
         )}
 
-        {/* BUILDING + UP NEXT — zigzag timeline */}
         <div ref={timelineRef} className="relative">
           <MobilePath />
           <ZigzagPath pathData={pathData} />
 
           <div className="relative z-10">
-            <ZoneHeader
-              emoji="🔨"
-              title="Building Now"
-              status="building"
-              isAdmin={isAdmin}
-              onDropZone={handleZoneDrop}
-            />
+            <ZoneHeader emoji="🔨" title="Building Now" />
             <div className="space-y-6 md:space-y-28 lg:space-y-36">
               {building.length === 0 && (
                 <p className="text-center text-sm text-[var(--text-muted)]">Nothing in progress yet.</p>
@@ -286,20 +252,12 @@ export default function RoadmapPage() {
                     side={getSide(idx)}
                     cardRef={(el) => { cardRefs.current[idx] = el }}
                     isAdmin={isAdmin}
-                    isDragging={draggingItemId === item.id}
-                    onDragStart={handleDragStart}
                   />
                 )
               })}
             </div>
 
-            <ZoneHeader
-              emoji="💡"
-              title="Up Next"
-              status="upcoming"
-              isAdmin={isAdmin}
-              onDropZone={handleZoneDrop}
-            />
+            <ZoneHeader emoji="💡" title="Up Next" />
             <div className="space-y-6 md:space-y-28 lg:space-y-36">
               {upcoming.length === 0 && (
                 <p className="text-center text-sm text-[var(--text-muted)]">No upcoming items yet.</p>
@@ -318,8 +276,6 @@ export default function RoadmapPage() {
                     onLoginRequired={() => handleLoginRequired('Sign in to vote on features')}
                     cardRef={(el) => { cardRefs.current[idx] = el }}
                     isAdmin={isAdmin}
-                    isDragging={draggingItemId === item.id}
-                    onDragStart={handleDragStart}
                   />
                 )
               })}
@@ -327,14 +283,7 @@ export default function RoadmapPage() {
           </div>
         </div>
 
-        {/* EXPLORING — horizontal grid */}
-        <ZoneHeader
-          emoji="🔮"
-          title="Exploring"
-          status="exploring"
-          isAdmin={isAdmin}
-          onDropZone={handleZoneDrop}
-        />
+        <ZoneHeader emoji="🔮" title="Exploring" />
         {exploring.length === 0 ? (
           <p className="text-center text-sm text-[var(--text-muted)]">No ideas being explored yet.</p>
         ) : (
@@ -351,8 +300,6 @@ export default function RoadmapPage() {
                 faded
                 compact
                 isAdmin={isAdmin}
-                isDragging={draggingItemId === item.id}
-                onDragStart={handleDragStart}
               />
             ))}
           </div>

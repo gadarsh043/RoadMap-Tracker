@@ -2,25 +2,18 @@ import { useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { shellPanelClass } from './GridBackground'
 import type { RoadmapItem } from '../types/roadmap'
-import { updateRoadmapSchedule } from '../hooks/useRoadmapItems'
+import { setRoadmapTargetDate } from '../hooks/useRoadmapItems'
 
 interface AdminCalendarProps {
   items: RoadmapItem[]
-  draggingItemId: string | null
   onDateDrop: (itemId: string, date: Date) => void
-  onChipDragStart?: (itemId: string) => void
 }
 
-export function AdminCalendar({
-  items,
-  draggingItemId,
-  onDateDrop,
-  onChipDragStart,
-}: AdminCalendarProps) {
+export function AdminCalendar({ items, onDateDrop }: AdminCalendarProps) {
   const [viewDate, setViewDate] = useState(() => new Date())
   const [localDraggingId, setLocalDraggingId] = useState<string | null>(null)
 
-  const activeDragId = draggingItemId || localDraggingId
+  const activeDragId = localDraggingId
 
   const { year, month, days, startOffset } = useMemo(() => {
     const y = viewDate.getFullYear()
@@ -122,7 +115,6 @@ export function AdminCalendar({
                       e.dataTransfer.setData('text/plain', item.id)
                       e.dataTransfer.effectAllowed = 'move'
                       setLocalDraggingId(item.id)
-                      onChipDragStart?.(item.id)
                     }}
                     onDragEnd={() => setLocalDraggingId(null)}
                     className={`text-[10px] truncate px-1 py-0.5 rounded bg-brand-500/10 text-brand-500 cursor-grab active:cursor-grabbing hover:bg-brand-500/20 ${
@@ -140,14 +132,14 @@ export function AdminCalendar({
       </div>
 
       <p className="text-xs text-[var(--text-muted)] mt-3">
-        Drag chips between dates or drag card grips onto the calendar. Drop on zone headers to override status.
+        Drag chips between dates to reschedule.
       </p>
     </div>
   )
 }
 
 export async function handleAdminDateDrop(itemId: string, date: Date) {
-  await updateRoadmapSchedule(itemId, date, false)
+  await setRoadmapTargetDate(itemId, date)
 }
 
 function dateKey(date: Date): string {

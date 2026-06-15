@@ -63,51 +63,9 @@ export function MobilePath() {
   )
 }
 
-export function ZoneHeader({
-  emoji,
-  title,
-  status,
-  isAdmin,
-  onDropZone,
-}: {
-  emoji: string
-  title: string
-  status?: string
-  isAdmin?: boolean
-  onDropZone?: (status: string, itemId: string) => void
-}) {
+export function ZoneHeader({ emoji, title }: { emoji: string; title: string }) {
   return (
-    <div
-      className={`text-center py-10 md:py-14 relative z-10 ${
-        isAdmin && status ? 'admin-zone-drop rounded-2xl border-2 border-dashed border-transparent transition-colors' : ''
-      }`}
-      data-zone={status}
-      onDragOver={
-        isAdmin
-          ? (e) => {
-              e.preventDefault()
-              e.currentTarget.classList.add('border-brand-500/40', 'bg-brand-500/5')
-            }
-          : undefined
-      }
-      onDragLeave={
-        isAdmin
-          ? (e) => {
-              e.currentTarget.classList.remove('border-brand-500/40', 'bg-brand-500/5')
-            }
-          : undefined
-      }
-      onDrop={
-        isAdmin && status && onDropZone
-          ? (e) => {
-              e.preventDefault()
-              e.currentTarget.classList.remove('border-brand-500/40', 'bg-brand-500/5')
-              const itemId = e.dataTransfer.getData('text/plain')
-              if (itemId) onDropZone(status, itemId)
-            }
-          : undefined
-      }
-    >
+    <div className="text-center py-10 md:py-14 relative z-10">
       <h2 className="text-2xl md:text-3xl font-bold text-[var(--text-primary)] inline-flex items-center gap-2.5">
         <span>{emoji}</span> {title}
       </h2>

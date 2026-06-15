@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react'
 import { Mic, MicOff, Send } from 'lucide-react'
 import { shellPanelClass } from './GridBackground'
-import { processVoiceIdea } from '../lib/functions'
+import { processVoiceIdea } from '../lib/voiceApi'
 import { IdeaConfirmModal } from './IdeaConfirmModal'
 import { createRoadmapItem } from '../hooks/useRoadmapItems'
 import type { RoadmapItemInput } from '../types/roadmap'

@@ -12,6 +12,7 @@
     "deploy:hosting": "npm run build && firebase deploy --only hosting",
     "deploy:functions": "firebase deploy --only functions",
     "deploy:rules": "firebase deploy --only firestore:rules",
+    "deploy:worker": "npm install --prefix workers/voice-proxy && npm run deploy --prefix workers/voice-proxy",
     "deploy:all": "bash scripts/deploy-all.sh",
     "dev:local": "bash scripts/dev-local.sh",
     "seed:localpro": "node scripts/seed-roadmap.mjs"

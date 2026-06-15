@@ -2,26 +2,32 @@
 
 A collaborative roadmap app with a zigzag timeline UI, voice-to-idea input (Groq Whisper + LLM), heart voting, and admin drag-and-drop scheduling.
 
-## Quick finish (3 commands in your terminal)
-
-If setup is mostly done but deploy hasn't run yet:
+## Quick finish (Firebase Spark + Cloudflare — no Blaze)
 
 ```bash
+# 1. Cloudflare worker (voice — Groq key stays on Cloudflare)
+cd workers/voice-proxy && npm install
+npx wrangler login
+npx wrangler secret put GROQ_API_KEY
+npx wrangler secret put FIREBASE_API_KEY   # same as VITE_FIREBASE_API_KEY
+npm run deploy
+# Copy worker URL → VITE_VOICE_API_URL in .env.local
+
+# 2. Firebase hosting (free Spark)
 npx firebase login
-npx firebase functions:secrets:set GROQ_API_KEY   # paste gsk_... key
 npm run deploy:all
 ```
 
-Then seed admin: create `g.adarsh043@gmail.com` in Firebase Auth, visit `https://us-central1-roadmap-t.cloudfunctions.net/seedAdmin`, sign out/in.
+Full steps: [docs/CLOUDFLARE.md](docs/CLOUDFLARE.md)
 
 **Repo:** https://github.com/gadarsh043/RoadMap-Tracker (branch: `master`)
 
 ## Stack
 
 - **Frontend:** Vite, React, TypeScript, Tailwind v4
-- **Backend:** Firebase Auth, Firestore, Cloud Functions
-- **Voice AI:** Groq API (server-side only)
-- **Deploy:** Firebase Hosting
+- **Backend:** Firebase Auth, Firestore, Hosting (Spark — free)
+- **Voice AI:** Cloudflare Worker → Groq API (free tier, key server-side)
+- **Deploy:** Firebase Hosting + Cloudflare Workers
 
 ## Setup
 
@@ -38,18 +44,17 @@ Then seed admin: create `g.adarsh043@gmail.com` in Firebase Auth, visit `https:/
 cp .env.example .env.local
 ```
 
-Fill in your Firebase web config:
+Fill in your Firebase web config and Cloudflare worker URL:
 
 ```
 VITE_FIREBASE_API_KEY=...
-VITE_FIREBASE_AUTH_DOMAIN=...
-VITE_FIREBASE_PROJECT_ID=...
-VITE_FIREBASE_STORAGE_BUCKET=...
-VITE_FIREBASE_MESSAGING_SENDER_ID=...
-VITE_FIREBASE_APP_ID=...
+...
+VITE_VOICE_API_URL=https://roadmap-voice-proxy.<account>.workers.dev
 ```
 
-Update `.firebaserc` with your project ID.
+See [docs/CLOUDFLARE.md](docs/CLOUDFLARE.md) to deploy the worker and get this URL.
+
+**Do NOT put your Groq key in `.env.local`** — it lives in Cloudflare Worker secrets only.
 
 ### 3. Install & run locally
 
@@ -60,44 +65,31 @@ npm run dev
 npm run dev:local
 ```
 
-Open `http://localhost:5173`. Text ideas, auth, and hearts work once `.env.local` is filled. Voice needs deployed functions.
+Open `http://localhost:5173`. Text ideas, auth, and hearts work once `.env.local` is filled. Voice needs the Cloudflare worker URL in `VITE_VOICE_API_URL`.
 
-### 4. Cloud Functions (Groq key — server-side only)
+### 4. Cloudflare Worker (Groq — free, no Firebase Blaze)
 
-**Do NOT put your Groq key in `.env.local` or GitHub.**
-
-After `npx firebase login`:
+See **[docs/CLOUDFLARE.md](docs/CLOUDFLARE.md)** for full steps.
 
 ```bash
-npx firebase functions:secrets:set GROQ_API_KEY
-# Paste your gsk_... key when prompted
-```
-
-### 5. Deploy everything
-
-```bash
-npx firebase login          # one-time, opens browser
-npm run deploy:all          # rules → functions → hosting
-```
-
-Or step by step:
-
-```bash
-npm run deploy:rules
-npm run deploy:functions
+cd workers/voice-proxy
+npm install
+npx wrangler login
+npx wrangler secret put GROQ_API_KEY
+npx wrangler secret put FIREBASE_API_KEY
 npm run deploy
 ```
 
-### 6. Seed admin
+Add the worker URL to `.env.local` as `VITE_VOICE_API_URL`.
 
-1. In Firebase Console → Authentication, manually create user `g.adarsh043@gmail.com` with a password
-2. Call the seed function once:
+### 5. Deploy hosting (Firebase Spark)
 
+```bash
+npx firebase login
+npm run deploy:all
 ```
-https://<region>-<project-id>.cloudfunctions.net/seedAdmin
-```
 
-This sets the `admin` custom claim and creates the admin user profile.
+Deploys Firestore rules + hosting only (no Cloud Functions / no Blaze).
 
 ## Features
 
@@ -107,10 +99,12 @@ This sets the `admin` custom claim and creates the admin user profile.
 
 ## Voice input
 
-1. Click the mic icon in the floating bottom bar
-2. Speak your idea
-3. Groq Whisper transcribes → LLM extracts title, description, emoji
+1. Sign in
+2. Click the mic in the floating bottom bar
+3. Audio → Cloudflare Worker → Groq Whisper + LLM → title, description, emoji
 4. Confirm and pick an estimated date
+
+Requires `VITE_VOICE_API_URL` pointing at your deployed worker.
 
 ## Admin scheduling
 

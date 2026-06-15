@@ -1,6 +1,6 @@
 # GitHub Actions secrets (Settings → Secrets and variables → Actions)
 
-## Required for CI deploy
+## Firebase deploy (required)
 
 | Secret | Value |
 |--------|-------|
@@ -11,16 +11,25 @@
 | `VITE_FIREBASE_STORAGE_BUCKET` | From `.env.local` |
 | `VITE_FIREBASE_MESSAGING_SENDER_ID` | From `.env.local` |
 | `VITE_FIREBASE_APP_ID` | From `.env.local` |
+| `VITE_VOICE_API_URL` | Cloudflare Worker URL after `npm run deploy:worker` |
 
-## Groq key (one-time, via Firebase CLI — NOT a GitHub secret)
+## Cloudflare Worker (optional — for CI worker deploy)
+
+| Secret | Value |
+|--------|-------|
+| `CLOUDFLARE_API_TOKEN` | Cloudflare → My Profile → API Tokens → Create (Workers edit) |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare dashboard → right sidebar |
+
+Groq key is **not** a GitHub secret. Set it on Cloudflare:
 
 ```bash
-npx firebase login
-npx firebase functions:secrets:set GROQ_API_KEY
+cd workers/voice-proxy
+npx wrangler secret put GROQ_API_KEY
+npx wrangler secret put FIREBASE_API_KEY
 ```
+
+See [docs/CLOUDFLARE.md](../docs/CLOUDFLARE.md) for full setup.
 
 ## After first deploy
 
-1. Create user `g.adarsh043@gmail.com` in Firebase Authentication
-2. Visit `https://us-central1-roadmap-t.cloudfunctions.net/seedAdmin` once
-3. Sign out and back in
+1. Create user `g.adarsh043@gmail.com` in Firebase Authentication (admin is matched by email in Firestore rules).
