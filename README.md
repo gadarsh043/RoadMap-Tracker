@@ -42,20 +42,36 @@ Update `.firebaserc` with your project ID.
 ```bash
 npm install
 npm run dev
+# or
+npm run dev:local
 ```
 
-### 4. Cloud Functions
+Open `http://localhost:5173`. Text ideas, auth, and hearts work once `.env.local` is filled. Voice needs deployed functions.
+
+### 4. Cloud Functions (Groq key — server-side only)
+
+**Do NOT put your Groq key in `.env.local` or GitHub.**
+
+After `npx firebase login`:
 
 ```bash
-cd functions && npm install && cd ..
-firebase functions:secrets:set GROQ_API_KEY
+npx firebase functions:secrets:set GROQ_API_KEY
+# Paste your gsk_... key when prompted
 ```
 
-### 5. Deploy
+### 5. Deploy everything
 
 ```bash
-npm run build
-firebase deploy
+npx firebase login          # one-time, opens browser
+npm run deploy:all          # rules → functions → hosting
+```
+
+Or step by step:
+
+```bash
+npm run deploy:rules
+npm run deploy:functions
+npm run deploy
 ```
 
 ### 6. Seed admin
