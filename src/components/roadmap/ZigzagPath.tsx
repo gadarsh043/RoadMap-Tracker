@@ -74,7 +74,7 @@ export function ZoneHeader({
   title: string
   status?: string
   isAdmin?: boolean
-  onDropZone?: (status: string) => void
+  onDropZone?: (status: string, itemId: string) => void
 }) {
   return (
     <div
@@ -102,7 +102,8 @@ export function ZoneHeader({
           ? (e) => {
               e.preventDefault()
               e.currentTarget.classList.remove('border-brand-500/40', 'bg-brand-500/5')
-              onDropZone(status)
+              const itemId = e.dataTransfer.getData('text/plain')
+              if (itemId) onDropZone(status, itemId)
             }
           : undefined
       }

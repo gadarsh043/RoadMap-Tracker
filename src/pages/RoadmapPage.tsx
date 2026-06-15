@@ -5,7 +5,6 @@ import { GridBackground } from '../components/GridBackground'
 import { IdeaInputBar } from '../components/IdeaInputBar'
 import { AdminCalendar, handleAdminDateDrop } from '../components/AdminCalendar'
 import { AdminUserPanel } from '../components/AdminUserPanel'
-import { ImportRoadmapButton } from '../components/ImportRoadmapButton'
 import { ShippedCard } from '../components/roadmap/ShippedCard'
 import { BuildingCard } from '../components/roadmap/BuildingCard'
 import { FeatureCard } from '../components/roadmap/FeatureCard'
@@ -78,14 +77,10 @@ export default function RoadmapPage() {
     setDraggingItemId(null)
   }, [])
 
-  const handleZoneDrop = useCallback(
-    async (status: string) => {
-      if (!draggingItemId) return
-      await setRoadmapZoneOverride(draggingItemId, status as RoadmapStatus)
-      setDraggingItemId(null)
-    },
-    [draggingItemId],
-  )
+  const handleZoneDrop = useCallback(async (status: string, itemId: string) => {
+    await setRoadmapZoneOverride(itemId, status as RoadmapStatus)
+    setDraggingItemId(null)
+  }, [])
 
   const computePath = useCallback(() => {
     const container = containerRef.current
@@ -166,7 +161,11 @@ export default function RoadmapPage() {
         <div className="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between">
           <span className="font-bold text-[var(--text-primary)]">Roadmap</span>
           <div className="flex items-center gap-3">
-            {isLoggedIn && user && <ImportRoadmapButton userId={user.uid} />}
+            {isAdmin && (
+              <span className="text-xs font-medium text-brand-500 bg-brand-500/10 px-2 py-0.5 rounded-full hidden sm:inline">
+                Admin
+              </span>
+            )}
             {isAdmin && (
               <button
                 type="button"

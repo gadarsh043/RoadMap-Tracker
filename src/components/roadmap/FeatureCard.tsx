@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Heart, Pin } from 'lucide-react'
 import type { RoadmapItem } from '../../types/roadmap'
+import { formatTargetDate } from '../../lib/zoneLogic'
 
 interface FeatureCardProps {
   item: RoadmapItem
@@ -76,6 +77,11 @@ export function FeatureCard({
             <span className="text-2xl shrink-0" aria-hidden>{item.emoji}</span>
             <div className="flex-1 min-w-0">
               <h3 className="text-[15px] font-semibold text-[var(--text-primary)]">{item.title}</h3>
+              {item.targetDate && (
+                <p className="text-xs text-brand-500 font-medium mt-0.5">
+                  Est. {formatTargetDate(item.targetDate.toDate())}
+                </p>
+              )}
               <p className="text-sm text-[var(--text-secondary)] mt-1 leading-relaxed">
                 {item.description}
               </p>

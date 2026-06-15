@@ -40,9 +40,11 @@ export function AdminCalendar({ items, draggingItemId, onDateDrop }: AdminCalend
 
   const monthLabel = viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 
-  const handleDrop = (date: Date) => {
-    if (!draggingItemId) return
-    onDateDrop(draggingItemId, date)
+  const handleDrop = (e: React.DragEvent, date: Date) => {
+    e.preventDefault()
+    const itemId = e.dataTransfer.getData('text/plain') || draggingItemId
+    if (!itemId) return
+    onDateDrop(itemId, date)
   }
 
   return (
@@ -91,7 +93,7 @@ export function AdminCalendar({ items, draggingItemId, onDateDrop }: AdminCalend
             <div
               key={key}
               onDragOver={(e) => e.preventDefault()}
-              onDrop={() => handleDrop(date)}
+              onDrop={(e) => handleDrop(e, date)}
               className={`min-h-[72px] p-1 rounded-lg border transition-colors ${
                 draggingItemId
                   ? 'border-dashed border-brand-500/50 hover:bg-brand-500/5'

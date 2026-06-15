@@ -9,6 +9,8 @@ import { doc, getDoc } from 'firebase/firestore'
 import { auth, db } from '../lib/firebase'
 import type { UserProfile } from '../types/roadmap'
 
+export const ADMIN_EMAIL = 'g.adarsh043@gmail.com'
+
 export interface AuthUser {
   uid: string
   email: string
@@ -47,7 +49,10 @@ async function buildAuthUser(firebaseUser: User): Promise<AuthUser> {
   return {
     uid: firebaseUser.uid,
     email: firebaseUser.email ?? '',
-    isAdmin: tokenResult.claims.admin === true || profile?.role === 'admin',
+    isAdmin:
+      tokenResult.claims.admin === true ||
+      profile?.role === 'admin' ||
+      firebaseUser.email === ADMIN_EMAIL,
     profile,
   }
 }

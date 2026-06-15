@@ -1,5 +1,6 @@
 import { Pin } from 'lucide-react'
 import type { RoadmapItem } from '../../types/roadmap'
+import { formatTargetDate } from '../../lib/zoneLogic'
 
 interface BuildingCardProps {
   item: RoadmapItem
@@ -53,6 +54,11 @@ export function BuildingCard({
             <span className="text-2xl shrink-0" aria-hidden>{item.emoji}</span>
             <div>
               <h3 className="text-[15px] font-semibold text-[var(--text-primary)]">{item.title}</h3>
+              {item.targetDate && (
+                <p className="text-xs text-brand-500 font-medium mt-0.5">
+                  Est. {formatTargetDate(item.targetDate.toDate())}
+                </p>
+              )}
               <p className="text-sm text-[var(--text-secondary)] mt-1 leading-relaxed">
                 {item.description}
               </p>
