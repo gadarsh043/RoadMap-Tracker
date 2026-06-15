@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { shellPanelClass } from './GridBackground'
 import type { RoadmapItem } from '../types/roadmap'
@@ -7,13 +7,12 @@ import { setRoadmapTargetDate } from '../hooks/useRoadmapItems'
 interface AdminCalendarProps {
   items: RoadmapItem[]
   onDateDrop: (itemId: string, date: Date) => void
+  onItemClick?: (item: RoadmapItem) => void
 }
-
-export function AdminCalendar({ items, onDateDrop }: AdminCalendarProps) {
+export function AdminCalendar({ items, onDateDrop, onItemClick }: AdminCalendarProps) {
   const [viewDate, setViewDate] = useState(() => new Date())
   const [localDraggingId, setLocalDraggingId] = useState<string | null>(null)
-
-  const activeDragId = localDraggingId
+  const didDragRef = useRef(false)
 
   const { year, month, days, startOffset } = useMemo(() => {
     const y = viewDate.getFullYear()
@@ -41,6 +40,13 @@ export function AdminCalendar({ items, onDateDrop }: AdminCalendarProps) {
   }, [items])
 
   const monthLabel = viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+
+  const activeDragId = localDraggingId
+
+  const handleChipClick = (item: RoadmapItem) => {
+    if (didDragRef.current) return
+    onItemClick?.(item)
+  }
 
   const handleDrop = (e: React.DragEvent, date: Date) => {
     e.preventDefault()
@@ -108,22 +114,30 @@ export function AdminCalendar({ items, onDateDrop }: AdminCalendarProps) {
               </div>
               <div className="space-y-0.5">
                 {dayItems.map((item) => (
-                  <div
+                  <button
                     key={item.id}
+                    type="button"
                     draggable
                     onDragStart={(e) => {
+                      didDragRef.current = true
                       e.dataTransfer.setData('text/plain', item.id)
                       e.dataTransfer.effectAllowed = 'move'
                       setLocalDraggingId(item.id)
                     }}
-                    onDragEnd={() => setLocalDraggingId(null)}
-                    className={`text-[10px] truncate px-1 py-0.5 rounded bg-brand-500/10 text-brand-500 cursor-grab active:cursor-grabbing hover:bg-brand-500/20 ${
-                      activeDragId === item.id ? 'opacity-50' : ''
+                    onDragEnd={() => {
+                      setLocalDraggingId(null)
+                      setTimeout(() => {
+                        didDragRef.current = false
+                      }, 0)
+                    }}
+                    onClick={() => handleChipClick(item)}
+                    className={`w-full text-left text-[10px] truncate px-1 py-0.5 rounded bg-brand-500/10 text-brand-500 cursor-pointer hover:bg-brand-500/20 ${
+                      activeDragId === item.id ? 'opacity-50 cursor-grabbing' : 'cursor-grab'
                     }`}
-                    title={item.title}
+                    title={`${item.title} — click to edit, drag to reschedule`}
                   >
                     {item.emoji} {item.title}
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
@@ -132,7 +146,7 @@ export function AdminCalendar({ items, onDateDrop }: AdminCalendarProps) {
       </div>
 
       <p className="text-xs text-[var(--text-muted)] mt-3">
-        Drag chips between dates to reschedule.
+        Click a chip to edit (change date, section). Drag chips between days in this month.
       </p>
     </div>
   )

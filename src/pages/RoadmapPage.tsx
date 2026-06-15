@@ -13,6 +13,7 @@ import { ZigzagPath, MobilePath, ZoneHeader } from '../components/roadmap/Zigzag
 import { buildSmoothPath, getSide } from '../components/roadmap/helpers'
 import { useAuth, logout } from '../hooks/useAuth'
 import { useTheme } from '../hooks/useTheme'
+import { CardDetailModal } from '../components/roadmap/CardDetailModal'
 import { useRoadmapItems, useUserHearts, useToggleHeart } from '../hooks/useRoadmapItems'
 
 function LoginToast({ show, message }: { show: boolean; message: string }) {
@@ -35,6 +36,12 @@ export default function RoadmapPage() {
   const [toastMessage, setToastMessage] = useState('Sign in to continue')
   const [pathData, setPathData] = useState({ fullPath: '', buildingPath: '' })
   const [adminPanelOpen, setAdminPanelOpen] = useState(false)
+  const [calendarModalItemId, setCalendarModalItemId] = useState<string | null>(null)
+
+  const calendarModalItem =
+    calendarModalItemId != null
+      ? items.find((i) => i.id === calendarModalItemId) ?? null
+      : null
 
   const { shipped, building, upcoming, exploring } = grouped
   const connectedCount = building.length + upcoming.length
@@ -219,7 +226,13 @@ export default function RoadmapPage() {
         </div>
       </section>
 
-      {isAdmin && <AdminCalendar items={items} onDateDrop={handleDateDrop} />}
+      {isAdmin && (
+        <AdminCalendar
+          items={items}
+          onDateDrop={handleDateDrop}
+          onItemClick={(item) => setCalendarModalItemId(item.id)}
+        />
+      )}
 
       <section className="relative max-w-5xl mx-auto px-6 pb-32">
         <ZoneHeader emoji="🚀" title="Shipped" />
@@ -323,6 +336,12 @@ export default function RoadmapPage() {
       />
 
       <AdminUserPanel open={adminPanelOpen} onClose={() => setAdminPanelOpen(false)} />
+
+      <CardDetailModal
+        item={calendarModalItem}
+        isAdmin={isAdmin}
+        onClose={() => setCalendarModalItemId(null)}
+      />
     </div>
   )
 }

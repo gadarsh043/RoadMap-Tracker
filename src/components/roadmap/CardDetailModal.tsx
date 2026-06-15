@@ -149,6 +149,9 @@ export function CardDetailModal({ item, isAdmin, onClose }: CardDetailModalProps
 
             <div>
               <p className="text-xs text-[var(--text-muted)] mb-2">Date</p>
+              <p className="text-[10px] text-[var(--text-muted)] mb-2">
+                Use the arrows in the calendar to pick any month (e.g. move June → July).
+              </p>
               <div className="relative inline-block">
                 <button
                   ref={calendarRef}
