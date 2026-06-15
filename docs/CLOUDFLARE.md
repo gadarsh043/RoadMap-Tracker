@@ -7,9 +7,11 @@ Voice AI runs on a **free Cloudflare Worker**. Firebase (Spark) hosts the app, a
 ```
 Browser (roadmap-t.web.app)
   ├── Firebase Auth / Firestore / Hosting  (free Spark)
-  └── POST voice audio → Cloudflare Worker → Groq API
+  └── POST → Cloudflare Worker
+        ├── /              → Groq (voice)
+        └── /create-user   → Firebase Admin (user creation)
                               ↑
-                         GROQ_API_KEY (secret, never in browser)
+                         secrets (never in browser)
 ```
 
 ## Cloudflare Dashboard (Git-connected build)
@@ -38,6 +40,7 @@ Dashboard → **Workers & Pages** → **roadmap-voice-proxy** → **Settings** �
 |------|------|--------|
 | `GROQ_API_KEY` | Secret | Your `gsk_...` Groq key |
 | `FIREBASE_API_KEY` | Secret | Same as `VITE_FIREBASE_API_KEY` in `.env.local` |
+| `FIREBASE_SERVICE_ACCOUNT` | Secret | Full JSON from Firebase Console → Project settings → Service accounts → Generate new private key |
 
 `ALLOWED_ORIGINS` is already in `wrangler.toml` — no need to duplicate unless you override in the dashboard.
 
@@ -84,6 +87,9 @@ npx wrangler secret put GROQ_API_KEY
 
 # Firebase Web API key (same as VITE_FIREBASE_API_KEY in .env.local)
 npx wrangler secret put FIREBASE_API_KEY
+
+# Firebase Admin service account JSON (for admin "Create user" in the app)
+npx wrangler secret put FIREBASE_SERVICE_ACCOUNT
 ```
 
 ### 5. Update allowed origins (if needed)
@@ -152,7 +158,11 @@ npm run deploy:worker
 
 | Issue | Fix |
 |-------|-----|
-| CORS error | Add your origin to `ALLOWED_ORIGINS` in `wrangler.toml`, redeploy worker |
+| CORS error on create user | Redeploy worker; ensure `FIREBASE_SERVICE_ACCOUNT` secret is set |
+| CORS error on voice | Add your origin to `ALLOWED_ORIGINS` in `wrangler.toml`, redeploy worker |
+| 403 Admin access required | Sign in as the admin email (`ADMIN_EMAIL` in `wrangler.toml`) |
+| 503 User creation not configured | Set `FIREBASE_SERVICE_ACCOUNT` secret on the worker |
 | 401 Unauthorized | Sign in to the app first; token must be valid |
 | Voice API not configured | Set `VITE_VOICE_API_URL` in `.env.local` or GitHub secret |
 | Groq errors | Check `GROQ_API_KEY` secret: `npx wrangler secret list` |
+| `ERR_BLOCKED_BY_CLIENT` on Firestore | Browser ad blocker — disable for your site or ignore (usually harmless) |

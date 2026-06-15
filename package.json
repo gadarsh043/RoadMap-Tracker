@@ -15,7 +15,8 @@
     "deploy:worker": "npm install --prefix workers/voice-proxy && npm run deploy --prefix workers/voice-proxy",
     "deploy:all": "bash scripts/deploy-all.sh",
     "dev:local": "bash scripts/dev-local.sh",
-    "seed:localpro": "node scripts/seed-roadmap.mjs"
+    "seed:localpro": "node scripts/seed-roadmap.mjs",
+    "export:roadmap": "node scripts/export-roadmap.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

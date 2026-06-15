@@ -6,10 +6,11 @@ import { setRoadmapTargetDate } from '../hooks/useRoadmapItems'
 
 interface AdminCalendarProps {
   items: RoadmapItem[]
+  isAdmin?: boolean
   onDateDrop: (itemId: string, date: Date) => void
   onItemClick?: (item: RoadmapItem) => void
 }
-export function AdminCalendar({ items, onDateDrop, onItemClick }: AdminCalendarProps) {
+export function AdminCalendar({ items, isAdmin = false, onDateDrop, onItemClick }: AdminCalendarProps) {
   const [viewDate, setViewDate] = useState(() => new Date())
   const [localDraggingId, setLocalDraggingId] = useState<string | null>(null)
   const didDragRef = useRef(false)
@@ -49,6 +50,7 @@ export function AdminCalendar({ items, onDateDrop, onItemClick }: AdminCalendarP
   }
 
   const handleDrop = (e: React.DragEvent, date: Date) => {
+    if (!isAdmin) return
     e.preventDefault()
     const itemId = e.dataTransfer.getData('text/plain') || activeDragId
     if (!itemId) return
@@ -59,7 +61,9 @@ export function AdminCalendar({ items, onDateDrop, onItemClick }: AdminCalendarP
   return (
     <div className={`mx-auto max-w-5xl px-6 mb-8 rounded-2xl border border-[var(--border)] p-4 ${shellPanelClass}`}>
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-[var(--text-primary)]">Admin Calendar</h3>
+        <h3 className="text-sm font-semibold text-[var(--text-primary)]">
+          {isAdmin ? 'Admin Calendar' : 'Calendar'}
+        </h3>
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -101,10 +105,10 @@ export function AdminCalendar({ items, onDateDrop, onItemClick }: AdminCalendarP
           return (
             <div
               key={key}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => handleDrop(e, date)}
+              onDragOver={isAdmin ? (e) => e.preventDefault() : undefined}
+              onDrop={isAdmin ? (e) => handleDrop(e, date) : undefined}
               className={`min-h-[88px] max-h-[120px] overflow-y-auto p-1 rounded-lg border transition-colors ${
-                activeDragId
+                isAdmin && activeDragId
                   ? 'border-dashed border-brand-500/50 hover:bg-brand-500/5'
                   : 'border-transparent'
               } ${isToday ? 'bg-brand-500/5' : 'hover:bg-[var(--bg)]'}`}
@@ -117,24 +121,40 @@ export function AdminCalendar({ items, onDateDrop, onItemClick }: AdminCalendarP
                   <button
                     key={item.id}
                     type="button"
-                    draggable
-                    onDragStart={(e) => {
-                      didDragRef.current = true
-                      e.dataTransfer.setData('text/plain', item.id)
-                      e.dataTransfer.effectAllowed = 'move'
-                      setLocalDraggingId(item.id)
-                    }}
-                    onDragEnd={() => {
-                      setLocalDraggingId(null)
-                      setTimeout(() => {
-                        didDragRef.current = false
-                      }, 0)
-                    }}
+                    draggable={isAdmin}
+                    onDragStart={
+                      isAdmin
+                        ? (e) => {
+                            didDragRef.current = true
+                            e.dataTransfer.setData('text/plain', item.id)
+                            e.dataTransfer.effectAllowed = 'move'
+                            setLocalDraggingId(item.id)
+                          }
+                        : undefined
+                    }
+                    onDragEnd={
+                      isAdmin
+                        ? () => {
+                            setLocalDraggingId(null)
+                            setTimeout(() => {
+                              didDragRef.current = false
+                            }, 0)
+                          }
+                        : undefined
+                    }
                     onClick={() => handleChipClick(item)}
-                    className={`w-full text-left text-[10px] truncate px-1 py-0.5 rounded bg-brand-500/10 text-brand-500 cursor-pointer hover:bg-brand-500/20 ${
-                      activeDragId === item.id ? 'opacity-50 cursor-grabbing' : 'cursor-grab'
+                    className={`w-full text-left text-[10px] truncate px-1 py-0.5 rounded bg-brand-500/10 text-brand-500 hover:bg-brand-500/20 ${
+                      isAdmin
+                        ? activeDragId === item.id
+                          ? 'opacity-50 cursor-grabbing'
+                          : 'cursor-grab'
+                        : 'cursor-pointer'
                     }`}
-                    title={`${item.title} — click to edit, drag to reschedule`}
+                    title={
+                      isAdmin
+                        ? `${item.title} — click to edit, drag to reschedule`
+                        : `${item.title} — click to view`
+                    }
                   >
                     {item.emoji} {item.title}
                   </button>
@@ -146,7 +166,9 @@ export function AdminCalendar({ items, onDateDrop, onItemClick }: AdminCalendarP
       </div>
 
       <p className="text-xs text-[var(--text-muted)] mt-3">
-        Click a chip to edit (change date, section). Drag chips between days in this month.
+        {isAdmin
+          ? 'Click a chip to edit (change date, section). Drag chips between days in this month.'
+          : 'Click a chip to view feature details and estimated dates.'}
       </p>
     </div>
   )

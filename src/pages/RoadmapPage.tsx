@@ -226,13 +226,12 @@ export default function RoadmapPage() {
         </div>
       </section>
 
-      {isAdmin && (
-        <AdminCalendar
-          items={items}
-          onDateDrop={handleDateDrop}
-          onItemClick={(item) => setCalendarModalItemId(item.id)}
-        />
-      )}
+      <AdminCalendar
+        items={items}
+        isAdmin={isAdmin}
+        onDateDrop={handleDateDrop}
+        onItemClick={(item) => setCalendarModalItemId(item.id)}
+      />
 
       <section className="relative max-w-5xl mx-auto px-6 pb-32">
         <ZoneHeader emoji="🚀" title="Shipped" />

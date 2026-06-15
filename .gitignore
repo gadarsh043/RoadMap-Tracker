@@ -14,6 +14,9 @@ dist-ssr
 functions/lib
 .firebase
 .wrangler
+scripts/roadmap-export.json
+*firebase-adminsdk*.json
+serviceAccountKey.json
 
 # Editor directories and files
 .vscode/*

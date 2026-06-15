@@ -1,7 +1,9 @@
 export interface Env {
   GROQ_API_KEY: string
   FIREBASE_API_KEY: string
+  FIREBASE_SERVICE_ACCOUNT: string
   ALLOWED_ORIGINS: string
+  ADMIN_EMAIL: string
 }
 
 interface VoiceIdeaResult {
@@ -9,6 +11,12 @@ interface VoiceIdeaResult {
   description: string
   emoji: string
   transcript: string
+}
+
+interface ServiceAccount {
+  project_id: string
+  client_email: string
+  private_key: string
 }
 
 export default {
@@ -42,27 +50,215 @@ export default {
       return json({ error: 'Invalid auth token' }, 401, corsHeaders)
     }
 
-    let body: { audioBase64?: string; mimeType?: string }
-    try {
-      body = await request.json()
-    } catch {
-      return json({ error: 'Invalid JSON body' }, 400, corsHeaders)
+    const path = new URL(request.url).pathname.replace(/\/$/, '') || '/'
+
+    if (path === '/create-user') {
+      return handleCreateUser(request, user, env, corsHeaders)
     }
 
-    const { audioBase64, mimeType } = body
-    if (!audioBase64 || !mimeType) {
-      return json({ error: 'audioBase64 and mimeType are required' }, 400, corsHeaders)
-    }
-
-    try {
-      const result = await processVoice(audioBase64, mimeType, env.GROQ_API_KEY)
-      return json(result, 200, corsHeaders)
-    } catch (err) {
-      console.error('Voice processing error:', err)
-      const message = err instanceof Error ? err.message : 'Voice processing failed'
-      return json({ error: message }, 500, corsHeaders)
-    }
+    return handleVoice(request, env, corsHeaders)
   },
+}
+
+async function handleCreateUser(
+  request: Request,
+  user: { localId: string; email?: string },
+  env: Env,
+  corsHeaders: Record<string, string>,
+): Promise<Response> {
+  if (user.email !== env.ADMIN_EMAIL) {
+    return json({ error: 'Admin access required' }, 403, corsHeaders)
+  }
+
+  if (!env.FIREBASE_SERVICE_ACCOUNT) {
+    return json({ error: 'User creation is not configured on the server' }, 503, corsHeaders)
+  }
+
+  let body: { email?: string; password?: string }
+  try {
+    body = await request.json()
+  } catch {
+    return json({ error: 'Invalid JSON body' }, 400, corsHeaders)
+  }
+
+  const { email, password } = body
+  if (!email || !password || password.length < 6) {
+    return json({ error: 'Valid email and password (6+ chars) required' }, 400, corsHeaders)
+  }
+
+  try {
+    const serviceAccount = JSON.parse(env.FIREBASE_SERVICE_ACCOUNT) as ServiceAccount
+    const accessToken = await getGoogleAccessToken(serviceAccount)
+    const uid = await createAuthUser(serviceAccount.project_id, accessToken, email, password)
+    await createUserProfile(serviceAccount.project_id, accessToken, uid, email, user.localId)
+    return json({ uid, email }, 200, corsHeaders)
+  } catch (err) {
+    console.error('Create user error:', err)
+    const message = err instanceof Error ? err.message : 'Failed to create user'
+    return json({ error: message }, 500, corsHeaders)
+  }
+}
+
+async function handleVoice(
+  request: Request,
+  env: Env,
+  corsHeaders: Record<string, string>,
+): Promise<Response> {
+  let body: { audioBase64?: string; mimeType?: string }
+  try {
+    body = await request.json()
+  } catch {
+    return json({ error: 'Invalid JSON body' }, 400, corsHeaders)
+  }
+
+  const { audioBase64, mimeType } = body
+  if (!audioBase64 || !mimeType) {
+    return json({ error: 'audioBase64 and mimeType are required' }, 400, corsHeaders)
+  }
+
+  try {
+    const result = await processVoice(audioBase64, mimeType, env.GROQ_API_KEY)
+    return json(result, 200, corsHeaders)
+  } catch (err) {
+    console.error('Voice processing error:', err)
+    const message = err instanceof Error ? err.message : 'Voice processing failed'
+    return json({ error: message }, 500, corsHeaders)
+  }
+}
+
+async function createAuthUser(
+  projectId: string,
+  accessToken: string,
+  email: string,
+  password: string,
+): Promise<string> {
+  const res = await fetch(
+    `https://identitytoolkit.googleapis.com/v1/projects/${projectId}/accounts`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password, emailVerified: false }),
+    },
+  )
+
+  if (!res.ok) {
+    const err = (await res.json().catch(() => ({}))) as { error?: { message?: string } }
+    throw new Error(err.error?.message ?? 'Failed to create auth user')
+  }
+
+  const data = (await res.json()) as { localId?: string }
+  if (!data.localId) {
+    throw new Error('Auth user created but no UID returned')
+  }
+  return data.localId
+}
+
+async function createUserProfile(
+  projectId: string,
+  accessToken: string,
+  uid: string,
+  email: string,
+  createdBy: string,
+): Promise<void> {
+  const now = new Date().toISOString()
+  const res = await fetch(
+    `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/users?documentId=${uid}`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        fields: {
+          email: { stringValue: email },
+          role: { stringValue: 'user' },
+          createdAt: { timestampValue: now },
+          createdBy: { stringValue: createdBy },
+        },
+      }),
+    },
+  )
+
+  if (!res.ok) {
+    const err = (await res.json().catch(() => ({}))) as { error?: { message?: string } }
+    throw new Error(err.error?.message ?? 'Failed to create user profile')
+  }
+}
+
+async function getGoogleAccessToken(serviceAccount: ServiceAccount): Promise<string> {
+  const now = Math.floor(Date.now() / 1000)
+  const header = base64UrlEncode(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))
+  const payload = base64UrlEncode(
+    JSON.stringify({
+      iss: serviceAccount.client_email,
+      sub: serviceAccount.client_email,
+      aud: 'https://oauth2.googleapis.com/token',
+      iat: now,
+      exp: now + 3600,
+      scope: 'https://www.googleapis.com/auth/cloud-platform',
+    }),
+  )
+
+  const unsigned = `${header}.${payload}`
+  const signature = await signJwt(unsigned, serviceAccount.private_key)
+  const jwt = `${unsigned}.${signature}`
+
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion: jwt,
+    }),
+  })
+
+  if (!res.ok) {
+    throw new Error('Failed to obtain Google access token')
+  }
+
+  const data = (await res.json()) as { access_token?: string }
+  if (!data.access_token) {
+    throw new Error('No access token in Google response')
+  }
+  return data.access_token
+}
+
+async function signJwt(data: string, pem: string): Promise<string> {
+  const pemContents = pem
+    .replace(/-----BEGIN PRIVATE KEY-----/, '')
+    .replace(/-----END PRIVATE KEY-----/, '')
+    .replace(/\s/g, '')
+  const binaryKey = Uint8Array.from(atob(pemContents), (c) => c.charCodeAt(0))
+
+  const key = await crypto.subtle.importKey(
+    'pkcs8',
+    binaryKey,
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  )
+
+  const signature = await crypto.subtle.sign(
+    'RSASSA-PKCS1-v1_5',
+    key,
+    new TextEncoder().encode(data),
+  )
+
+  return base64UrlEncodeBytes(new Uint8Array(signature))
+}
+
+function base64UrlEncode(value: string): string {
+  return btoa(value).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+function base64UrlEncodeBytes(bytes: Uint8Array): string {
+  let binary = ''
+  for (const byte of bytes) binary += String.fromCharCode(byte)
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
 
 async function verifyFirebaseToken(
