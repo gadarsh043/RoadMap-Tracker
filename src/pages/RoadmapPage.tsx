@@ -14,7 +14,7 @@ import { buildSmoothPath, getSide } from '../components/roadmap/helpers'
 import { useAuth, logout } from '../hooks/useAuth'
 import { useTheme } from '../hooks/useTheme'
 import { CardDetailModal } from '../components/roadmap/CardDetailModal'
-import { useRoadmapItems, useUserHearts, useToggleHeart } from '../hooks/useRoadmapItems'
+import { useRoadmapItems, useUserHearts, useToggleHeart, useHeartCounts } from '../hooks/useRoadmapItems'
 
 function LoginToast({ show, message }: { show: boolean; message: string }) {
   if (!show) return null
@@ -30,6 +30,7 @@ export default function RoadmapPage() {
   const { toggleTheme, isDark } = useTheme()
   const { items, grouped, loading: itemsLoading } = useRoadmapItems()
   const heartedIds = useUserHearts(user?.uid ?? null)
+  const heartCounts = useHeartCounts()
   const toggleHeart = useToggleHeart()
 
   const [showLoginToast, setShowLoginToast] = useState(false)
@@ -62,7 +63,13 @@ export default function RoadmapPage() {
     async (itemId: string) => {
       if (!user) return
       const isHearted = heartedIds.has(itemId)
-      await toggleHeart(itemId, user.uid, isHearted)
+      try {
+        await toggleHeart(itemId, user.uid, isHearted)
+      } catch {
+        setToastMessage('Could not update your vote. Try again.')
+        setShowLoginToast(true)
+        setTimeout(() => setShowLoginToast(false), 2500)
+      }
     },
     [user, heartedIds, toggleHeart],
   )
@@ -282,7 +289,7 @@ export default function RoadmapPage() {
                     item={item}
                     side={getSide(idx)}
                     hearted={heartedIds.has(item.id)}
-                    heartCount={item.heartCount}
+                    heartCount={heartCounts.get(item.id) ?? 0}
                     onHeart={handleHeart}
                     isLoggedIn={isLoggedIn}
                     onLoginRequired={() => handleLoginRequired('Sign in to vote on features')}
@@ -305,7 +312,7 @@ export default function RoadmapPage() {
                 key={item.id}
                 item={item}
                 hearted={heartedIds.has(item.id)}
-                heartCount={item.heartCount}
+                heartCount={heartCounts.get(item.id) ?? 0}
                 onHeart={handleHeart}
                 isLoggedIn={isLoggedIn}
                 onLoginRequired={() => handleLoginRequired('Sign in to vote on features')}

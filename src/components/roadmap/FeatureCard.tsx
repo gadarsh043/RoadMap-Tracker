@@ -94,8 +94,17 @@ export function FeatureCard({
             <button
               type="button"
               onClick={handleHeart}
-              className="flex items-center gap-1.5 group cursor-pointer"
-              aria-label={hearted ? 'Remove heart' : 'Heart this feature'}
+              disabled={!isLoggedIn}
+              className={`flex items-center gap-1.5 group ${
+                isLoggedIn ? 'cursor-pointer' : 'cursor-default'
+              }`}
+              aria-label={
+                isLoggedIn
+                  ? hearted
+                    ? 'Remove heart'
+                    : 'Heart this feature'
+                  : `Sign in to vote — ${heartCount} hearts`
+              }
             >
               <Heart
                 className={`w-[18px] h-[18px] transition-all duration-200 ${

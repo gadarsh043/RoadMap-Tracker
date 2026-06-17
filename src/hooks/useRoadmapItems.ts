@@ -3,14 +3,15 @@ import {
   collection,
   doc,
   onSnapshot,
-  query,
-  runTransaction,
   serverTimestamp,
   Timestamp,
   addDoc,
   updateDoc,
   getDocs,
+  deleteDoc,
+  setDoc,
   where,
+  query,
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { getEffectiveStatus } from '../lib/zoneLogic'
@@ -201,6 +202,26 @@ export async function setRoadmapZoneOverride(itemId: string, status: RoadmapItem
   await updateDoc(doc(db, 'roadmapItems', itemId), updates)
 }
 
+export function useHeartCounts() {
+  const [counts, setCounts] = useState<Map<string, number>>(new Map())
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, 'hearts'), (snapshot) => {
+      const next = new Map<string, number>()
+      for (const heartDoc of snapshot.docs) {
+        const itemId = heartDoc.data().itemId as string
+        if (!itemId) continue
+        next.set(itemId, (next.get(itemId) ?? 0) + 1)
+      }
+      setCounts(next)
+    })
+
+    return unsubscribe
+  }, [])
+
+  return counts
+}
+
 export function useUserHearts(userId: string | null) {
   const [heartedIds, setHeartedIds] = useState<Set<string>>(new Set())
 
@@ -226,26 +247,16 @@ export function useToggleHeart() {
   return useCallback(async (itemId: string, userId: string, isHearted: boolean) => {
     const heartId = `${itemId}_${userId}`
     const heartRef = doc(db, 'hearts', heartId)
-    const itemRef = doc(db, 'roadmapItems', itemId)
 
-    await runTransaction(db, async (transaction) => {
-      const itemSnap = await transaction.get(itemRef)
-      if (!itemSnap.exists()) return
-
-      const currentCount = itemSnap.data().heartCount ?? 0
-
-      if (isHearted) {
-        transaction.delete(heartRef)
-        transaction.update(itemRef, { heartCount: Math.max(0, currentCount - 1) })
-      } else {
-        transaction.set(heartRef, {
-          itemId,
-          userId,
-          createdAt: serverTimestamp(),
-        })
-        transaction.update(itemRef, { heartCount: currentCount + 1 })
-      }
-    })
+    if (isHearted) {
+      await deleteDoc(heartRef)
+    } else {
+      await setDoc(heartRef, {
+        itemId,
+        userId,
+        createdAt: serverTimestamp(),
+      })
+    }
   }, [])
 }
 
